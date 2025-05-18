@@ -8,6 +8,8 @@ import Zmxcrr.exceptions.UnknownEntityIdException;
 import jakarta.transaction.Transactional;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.security.access.prepost.PostAuthorize;
+import org.springframework.security.access.prepost.PreAuthorize;
 import Zmxcrr.repositories.CatRepository;
 import Zmxcrr.repositories.OwnerRepository;
 
@@ -23,14 +25,15 @@ public class CatServiceImpl implements CatService {
 
     @Override
     @Transactional
-    public long addCat(String name, LocalDate bithdate, String breed, CatColor color, long ownerID) throws UnknownEntityIdException {
+    @PreAuthorize("hasAuthority('ADMIN') or @authorizeService.isCurrentOwner(authentication, #ownerID.longValue())")
+    public long addCat(String name, LocalDate birthdate, String breed, CatColor color, Long ownerID) throws UnknownEntityIdException {
         var owner = ownerRepository.findById(ownerID);
         if (owner.isEmpty())
             throw new UnknownEntityIdException("Owner with ID=%s does not exist".formatted(ownerID));
 
         var cat = new Cat();
         cat.setName(name);
-        cat.setBirthdate(bithdate);
+        cat.setBirthdate(birthdate);
         cat.setBreed(breed);
         cat.setColor(color);
         cat.setOwner(owner.get());
@@ -39,9 +42,17 @@ public class CatServiceImpl implements CatService {
         return catRepository.save(cat).getId();
     }
 
+    @PreAuthorize("hasAuthority('ADMIN') or @authorizeService.isCurrentOwner(authentication, #ownerID.longValue())")
     @Override
     @Transactional
-    public boolean removeCat(long id) {
+    public List<CatDto> getAllCats() {
+        return catRepository.findAll().stream().map(CatDto::new).toList();
+    }
+
+    @Override
+    @Transactional
+    @PreAuthorize("hasAuthority('ADMIN') or @authorizeService.hasAccessToCatID(authentication, #id.longValue())")
+    public boolean removeCat(Long id) {
         var cat = catRepository.findById(id);
         if (cat.isEmpty())
             return false;
@@ -52,13 +63,10 @@ public class CatServiceImpl implements CatService {
 
     @Override
     @Transactional
-    public List<CatDto> getAllCats() {
-        return catRepository.findAll().stream().map(CatDto::new).toList();
-    }
-
-    @Override
-    @Transactional
-    public Optional<CatDto> getCatByID(long id) {
+    @PostAuthorize("returnObject.empty or hasAuthority('ADMIN') " +
+            "or @authorizeService.hasAccessToCat(authentication, returnObject.get()) " +
+            "or @authorizeService.isOneOfFriends(authentication, returnObject.get())")
+    public Optional<CatDto> getCatByID(Long id) {
         var cat = catRepository.findById(id);
 
         if (cat.isEmpty())
@@ -66,6 +74,7 @@ public class CatServiceImpl implements CatService {
         else
             return Optional.of(new CatDto(cat.get()));
     }
+
 
     @Override
     @Transactional
@@ -76,8 +85,10 @@ public class CatServiceImpl implements CatService {
         return firstCat.getFriends().contains(secondCat);
     }
 
+
     @Override
     @Transactional
+    @PreAuthorize("hasAuthority('ADMIN')")
     public void makeFriendship(long firstCatID, long secondCatID) throws UnknownEntityIdException {
         var firstCat = checkCatPersistence(catRepository, firstCatID);
         var secondCat = checkCatPersistence(catRepository, secondCatID);
@@ -93,6 +104,7 @@ public class CatServiceImpl implements CatService {
 
     @Override
     @Transactional
+    @PreAuthorize("hasAuthority('ADMIN')")
     public void destroyFriendship(long firstCatID, long secondCatID) throws UnknownEntityIdException {
         var firstCat = checkCatPersistence(catRepository, firstCatID);
         var secondCat = checkCatPersistence(catRepository, secondCatID);
@@ -108,6 +120,7 @@ public class CatServiceImpl implements CatService {
 
     @Override
     @Transactional
+    @PreAuthorize("hasAuthority('ADMIN') or @authorizeService.hasAccessToCat(authentication, #id)")
     public List<CatDto> getFriends(long id) throws UnknownEntityIdException {
         var cat = checkCatPersistence(catRepository, id);
 
@@ -118,9 +131,12 @@ public class CatServiceImpl implements CatService {
         return friends;
     }
 
-    public List<CatDto> findFiltered(CatColor color, String breed, Integer year) {
+    @Override
+    @Transactional
+    @PreAuthorize("hasAuthority('ADMIN') or @authorizeService.isCurrentOwner(authentication, #ownerId.longValue())")
+    public List<CatDto> findFiltered(CatColor color, String breed, Integer year, Long ownerId) {
         String color_string = (color == null ? null : color.toString());
-        return catRepository.findFiltered(color_string, breed, year).stream().map(CatDto::new).toList();
+        return catRepository.findFiltered(color_string, breed, year, ownerId).stream().map(CatDto::new).toList();
     }
 
     private Cat checkCatPersistence(CatRepository repository, long id) {
