@@ -10,7 +10,7 @@ repositories {
 }
 
 dependencies {
-    implementation(project(mapOf("path" to ":service:models")))
+    implementation(project(mapOf("path" to ":service:models:")))
     implementation(project(mapOf("path" to ":dao")))
 }
 

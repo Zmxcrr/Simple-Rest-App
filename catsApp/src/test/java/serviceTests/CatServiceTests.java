@@ -1,4 +1,4 @@
-package ServicesTests;
+package serviceTests;
 
 import Zmxcrr.dto.CatDto;
 import Zmxcrr.entities.Cat;

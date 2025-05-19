@@ -1,4 +1,4 @@
-package ServicesTests;
+package serviceTests;
 
 import Zmxcrr.dto.OwnerDto;
 import Zmxcrr.repositories.OwnerRepository;
