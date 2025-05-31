@@ -1,0 +1,44 @@
+package Zmxcrr.entities;
+
+import Zmxcrr.enums.CatColor;
+import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
+
+import java.time.LocalDate;
+import java.util.Set;
+
+@Getter
+@Setter
+@Entity
+@Table(name = "cats")
+public class Cat {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "id")
+    private Long id;
+
+    @Column(name = "name")
+    private String name;
+
+    @Column(name = "breed")
+    private String breed;
+
+    @Column(name = "color")
+    @Enumerated(EnumType.STRING)
+    private CatColor color;
+
+    @Column(name = "birthdate")
+    private LocalDate birthdate;
+
+    @Column(name = "owner_id")
+    private Long owner;
+
+    @ManyToMany(fetch = FetchType.LAZY ,cascade = CascadeType.PERSIST)
+    @JoinTable(
+            name = "friends",
+            joinColumns = @JoinColumn(name = "first_cat_id"),
+            inverseJoinColumns = @JoinColumn(name = "second_cat_id")
+    )
+    private Set<Cat> friends;
+}
